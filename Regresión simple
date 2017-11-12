@@ -1,0 +1,40 @@
+#Creando el conjunto de datos en un data frame con dos columnas, la primera es X y la segunda es Y
+datos<-data.frame(matrix(scan(),ncol=2,byrow=T))
+datos<-edit(datos) #al dar enter, abre la ventana donde modificamos los nombres de columna
+regres1<-lm(Y~1+X,datos)
+summary(regres1)
+
+#Obtención de gráficos de residuales:
+
+nf<-layout(rbind(c(1,1,2,2),c(3,3,4,4)))
+plot(predict(regres1),residuals(regres1),xlab=expression(hat(y)),ylab="Residuales",main="Res
+iduales vs. predichos")
+abline(h=0,lty=2)
+qqnorm(rstandard(regres1),ylab="Residuales estandarizados")
+qqline(rstandard(regres1),lty=2)
+plot(datos$X,residuals(regres1),xlab="X",ylab="Residuales",main="Residuales vs. X")
+abline(h=0,lty=2)
+plot(cooks.distance(regres1),type="h",xlab="No. obs",main="Gráfico Distancia de Cook")
+par(oma=c(1,1,1,1),new=T,font=2)
+mtext(outer=T, "Gráficos básicos de regresión simple",side=3)
+
+#Obtención del gráfico de recta ajustada con intervalos de predicción y de confianza:
+
+X<-datos$X[order(datos$X)]
+temp3<-predict(regres1,interval="prediction")
+temp4<-predict(regres1,interval="confidence")
+interval.pred<-temp3[order(datos$X),]
+interval.conf<-temp4[order(datos$X),]
+matriz<-as.matrix(cbind(X,interval.conf,interval.pred[,-1]))
+matplot(matriz[,1],matriz[,-1],type="l",lty=c(1,2,2,3,3),lwd=2,xlab= "X",ylab=
+"Y",col=c(1,2,2,4,4),main="Recta de regresión con intervalos de confianza y de predicción
+del 95%",cex.main=1)
+points(datos,type="p",pch=19)
+legend(locator(1),c("Recta
+ajustada","Interv.Conf","interv.Pred"),col=c(1,2,4),bty="n",lty=1:3,cex=0.8,lwd=2) #Hacer
+click sobre gráfico resultante, donde se desea colocar leyenda de las líneas
+
+
+#Obtención de la prueba de normalidad Shapiro Wilk,
+shapiro.test(residuals(regres1))
+
