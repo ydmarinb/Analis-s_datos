@@ -1,0 +1,82 @@
+# DEFINICIÓN DEL DIRECTORIO DE TRABAJO
+setwd("")
+
+
+# LECTURA DE DATOS POR TECLADO
+datos<-data.frame(scan(what=list(Cantidad_O2=0,X1=0,X2=0,X3=0,X4=0,X5=0,X6=0)))
+
+#AJUSTE DEL MODELO
+modelo<-lm(Cantidad_O2~X1+X2+X3+X4+X5+X6)
+#O BIEN
+modelo<-lm(Cantidad_O2~.,datos)
+summary(modelo)
+
+# ANOVA 
+miAnova<-function(modeloreg){
+SSq<-unlist(anova(modeloreg)["Sum Sq"])
+k<-length(SSq)-1
+SSR<-sum(SSq[1:k])
+SSE<-SSq[(k+1)]
+MSR<-SSR/k
+df.error<-unlist(anova(modeloreg)["Df"])[k+1]
+MSE<-SSE/df.error
+F0<-MSR/MSE
+VP<-pf(F0,k,df.error,lower.tail=F)
+result<-
+data.frame(SumSq=c(SSR,SSE),Df=c(k,df.error),MeanSq=c(MSR,MSE),F0=c(round(F0,digits=3),' '),
+P.value=c(format(VP,scientific = TRUE,digits=3),' '),row.names =c("Modelo","Error"))
+cat("Tabla ANOVA Modelo de Regresión","\n")
+result
+}
+miAnova(modelo)
+
+#TABLA DE TODAS LAS REGRESIONES POSIBLES
+allregtable<-function(modeloreg,respuesta){
+t1<-summary(regsubsets(model.matrix(modeloreg)[,-1],respuesta,nbest=20),all.best=TRUE)
+t2<-as.vector(apply(t1$which[,-1],1,sum))
+t3<-apply(t1$which[,-1],1,function(x) as.character(paste(colnames(
+model.matrix(modeloreg)[,-1])[x],collapse=" ")))
+results<-data.frame(NoOfVars=t2,R2=round(t1$rsq,4),adjR2=round(t1$adjr2,4),
+SSE=round(t1$rss,5),Cp=round(t1$cp,4),Variables.in.model=t3)
+#,MSE=round(t1$rss/(nrow(model.matrix(modeloreg)[,-1])-(NoOfVars+1)),5)
+results
+}
+allregtable(modelo,Cantidad_O2)
+
+#CALCULO DE RESIDUALES ESTUDENTIZADOS
+restud<-round(rstudent(modelo),4)
+#GRÁFICO DE RESIDUALES VS. VALORES PREDICHOS
+plot(fitted(modelo),restud,xlab="Valores Ajustados",ylab="Residuales Estudentizados",
+main="Residuales Estudentizados vs. Valores Ajustados")
+abline(h=0,lty=2,col=2)
+
+
+#PRUEBA DE NORMALIDAD DE SHAPIRO-WILK
+test<-shapiro.test(restud)
+test
+
+#GRÁFICO DE CUANTILES NORMALES
+win.graph()
+qqnorm(restud,cex=1.5)
+qqline(restud,lty=2,lwd=2,col=2)
+
+
+#DIAGNÓSTICOS DE DATOS ATÍPICOS, DE BALANCEO E INFLUENCIALES
+t1<-predict(modelo,se.fit=T)
+t2<-round(residuals(modelo),4)
+t3<-round(cooks.distance(modelo),4)
+t4<-round(hatvalues(modelo),4)
+t5<-round(dffits(modelo),4)
+data.frame(Cantidad_O2,yhat=t1$fit,se.yhat=t1$se.fit,residuals=t2,res.estud=restud,Cooks.D=t3,
+hii.value=t4,Dffits=t5)
+
+
+#CÁLCULO DE ESTADÍSTICOS PARA PUNTOS DE PREDICCIÓN [h00,y0hat y se(y0hat)]
+x01<-c(1,48,77,11,54,169,173)
+x02<-c(1,38,50,9,40,140,155)
+xpred<-rbind(x01,x02)
+colnames(xpred)<-colnames(model.matrix(modelo))
+A<-model.matrix(modelo)
+hvalues<-diag(xpred%*%solve(t(A)%*%A)%*%t(xpred))
+prednew<-predict(modelo,newdata=data.frame(xpred[,-1]),se.fit=T)
+data.frame(h00.value=hvalues,y0hat=prednew$fit,se.y0hat=prednew$se.fit)
